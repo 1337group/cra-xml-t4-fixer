@@ -27,7 +27,7 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 # ──────────────────────────────────────────────────────────────────────
 # CRA T4 Spec: Optional fields that MUST be removed when zero/empty
@@ -104,14 +104,16 @@ OPTIONAL_OTH_INFO_AMOUNTS = [
 ]
 
 
-def fix_t4_xml(content: str) -> tuple[str, dict[str, int]]:
+def fix_t4_xml(content: str) -> tuple[str, dict[str, int], list[str]]:
     """
-    Fix a T4 XML string. Returns (fixed_content, changes_dict).
+    Fix a T4 XML string. Returns (fixed_content, changes_dict, warnings).
 
     Removes optional fields with zero/empty values per CRA spec.
+    Removes negative amounts (not allowed by CRA schema).
     Preserves all required fields and non-zero optional data.
     """
     changes: dict[str, int] = {}
+    warnings: list[str] = []
 
     def remove_zero_field(text: str, field: str, zero_val: str, prefix: str = "") -> str:
         """Remove a field line when it contains the given zero value."""
@@ -126,26 +128,40 @@ def fix_t4_xml(content: str) -> tuple[str, dict[str, int]]:
             changes[f"{prefix}{field}" if prefix else field] = count
         return text
 
-    # ── 1. Slip-level optional amounts with 0.00 ────────────────────
+    # ── 1. Remove negative amounts ─────────────────────────────────
+    # CRA schema uses patterns like \d{0,5}\.\d{2} — no minus sign allowed.
+    # Negative pension adjustments should be filed as a T10 (PAR), not on T4.
+    neg_pattern = r"<(\w+)>(-\d+\.\d{2})</\1>\n"
+    neg_matches = re.findall(neg_pattern, content)
+    if neg_matches:
+        for field, value in neg_matches:
+            warnings.append(f"Removed negative value {value} from <{field}> — "
+                            "CRA does not accept negatives. If this is a Pension "
+                            "Adjustment Reversal, it should be filed on a T10 slip.")
+        count = len(neg_matches)
+        content = re.sub(neg_pattern, "", content)
+        changes["negative_amounts_removed"] = count
+
+    # ── 2. Slip-level optional amounts with 0.00 ────────────────────
     for field in OPTIONAL_SLIP_AMOUNTS:
         content = remove_zero_field(content, field, "0.00", "slip ")
 
-    # ── 2. Summary-level optional totals with 0.00 ──────────────────
+    # ── 3. Summary-level optional totals with 0.00 ──────────────────
     for field in OPTIONAL_SUMMARY_AMOUNTS:
         content = remove_zero_field(content, field, "0.00", "summary ")
 
-    # ── 3. OTH_INFO optional amounts with 0.00 ──────────────────────
+    # ── 4. OTH_INFO optional amounts with 0.00 ──────────────────────
     for field in OPTIONAL_OTH_INFO_AMOUNTS:
         content = remove_zero_field(content, field, "0.00", "oth_info ")
 
-    # ── 4. Empty <OTH_INFO> blocks ──────────────────────────────────
+    # ── 5. Empty <OTH_INFO> blocks ──────────────────────────────────
     pattern = r"<OTH_INFO>\n</OTH_INFO>\n"
     count = len(re.findall(pattern, content))
     if count:
         content = re.sub(pattern, "", content)
         changes["empty_oth_info_blocks"] = count
 
-    # ── 5. Optional non-amount fields with zero values ──────────────
+    # ── 6. Optional non-amount fields with zero values ──────────────
 
     # RPP/DPSP registration number — optional, remove when all zeros
     content = remove_zero_field(content, "rpp_dpsp_rgst_nbr", "0000000")
@@ -162,7 +178,7 @@ def fix_t4_xml(content: str) -> tuple[str, dict[str, int]]:
     # Second proprietor SIN — optional, remove when all zeros
     content = remove_zero_field(content, "pprtr_2_sin", "000000000")
 
-    return content, changes
+    return content, changes, warnings
 
 
 def validate_xml(content: str, filename: str) -> bool:
@@ -196,7 +212,7 @@ def process_file(filepath: Path, *, dry_run: bool = False, no_backup: bool = Fal
         return False
 
     # Apply fixes
-    fixed, changes = fix_t4_xml(content)
+    fixed, changes, warnings = fix_t4_xml(content)
 
     if not changes:
         print(f"\n{filepath.name}: No changes needed — already compliant")
@@ -217,6 +233,11 @@ def process_file(filepath: Path, *, dry_run: bool = False, no_backup: bool = Fal
     print(f"  Changes:")
     for desc, count in sorted(changes.items()):
         print(f"    ✓ {desc}: {count}")
+
+    if warnings:
+        print(f"  Warnings:")
+        for w in warnings:
+            print(f"    ⚠ {w}")
 
     if dry_run:
         return True

@@ -71,6 +71,7 @@ python3 fix_t4_xml.py --no-backup T4_2025.xml
 
 | Issue | Details |
 |-------|---------|
+| **Negative amounts** | Removes values like `-622.88` — CRA schema rejects negatives entirely. Warns that Pension Adjustment Reversals belong on a T10, not T4. |
 | Optional amounts = `0.00` | Removes `cppe_cntrb_amt`, `qpp_cntrb_amt`, `qppe_cntrb_amt`, `rpp_cntrb_amt`, `unn_dues_amt`, `chrty_dons_amt`, `padj_amt`, `prov_pip_amt`, `prov_insu_ern_amt`, and others when zero |
 | Empty `<OTH_INFO>` blocks | Removes empty Other Information sections |
 | `rpp_dpsp_rgst_nbr=0000000` | Optional registration number, all zeros |
