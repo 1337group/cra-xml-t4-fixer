@@ -16,7 +16,7 @@ Usage:
     python3 fix_t4_xml.py *.xml
     python3 fix_t4_xml.py --check T4FILE.xml    # dry-run, no changes
 
-Author: https://github.com/1337group/t4-fixer
+Author: https://github.com/1337group/cra-xml-t4-fixer
 License: MIT
 """
 
