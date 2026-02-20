@@ -30,7 +30,7 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-__version__ = "1.2.0"
+__version__ = "1.4.0"
 
 # Path to bundled CRA XSD schemas (relative to this script)
 SCHEMA_DIR = Path(__file__).parent / "schemas"
@@ -185,6 +185,36 @@ def fix_t4_xml(content: str) -> tuple[str, dict[str, int], list[str]]:
     # Second proprietor SIN — optional, remove when all zeros
     content = remove_zero_field(content, "pprtr_2_sin", "000000000")
 
+    # ── 7. Detect empty required fields ───────────────────────────
+    # These can't be auto-fixed — they need real data from the payroll system.
+    required_fields = {
+        "empt_prov_cd": "Employment Province Code",
+        "sin": "Social Insurance Number",
+        "bn": "Business Number",
+        "empr_dntl_ben_rpt_cd": "Employer Dental Benefits Reporting Code",
+    }
+
+    # Walk through T4Slip blocks to identify which employee has the problem
+    slip_pattern = re.compile(
+        r"<T4Slip>(.*?)</T4Slip>", re.DOTALL
+    )
+    for slip_match in slip_pattern.finditer(content):
+        slip = slip_match.group(1)
+
+        # Extract employee identifiers for the warning message
+        sin_m = re.search(r"<sin>(\d{9})</sin>", slip)
+        nbr_m = re.search(r"<empe_nbr>([^<]+)</empe_nbr>", slip)
+        sin_display = f"SIN ***{sin_m.group(1)[-6:]}" if sin_m else "SIN unknown"
+        emp_id = nbr_m.group(1) if nbr_m else "unknown"
+
+        for field, label in required_fields.items():
+            if f"<{field}></{field}>" in slip:
+                warnings.append(
+                    f"Empty required field <{field}> ({label}) — "
+                    f"Employee {emp_id} ({sin_display}). "
+                    f"Fix this in your payroll system and re-export."
+                )
+
     return content, changes, warnings
 
 
@@ -296,7 +326,7 @@ def process_file(
     # Apply fixes
     fixed, changes, warnings = fix_t4_xml(content)
 
-    if not changes:
+    if not changes and not warnings:
         print(f"\n{filepath.name}: No changes needed — already compliant")
         if validate:
             valid, msg = validate_xsd(filepath, schema_path)
@@ -308,6 +338,14 @@ def process_file(
                     print(f"    {line}")
                 return False
         return True
+
+    if not changes and warnings:
+        print(f"\n{'─'*60}")
+        print(f"WARNING: {filepath.name}")
+        print(f"  No fixable issues, but problems were found that need manual attention:")
+        for w in warnings:
+            print(f"    ⚠ {w}")
+        return False
 
     new_lines = fixed.count("\n")
 
