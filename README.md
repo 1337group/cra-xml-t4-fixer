@@ -1,8 +1,14 @@
-# t4-fixer
+# CRA T4 XML Fixer
 
 Fix CRA T4 XML files for Internet File Transfer submission.
 
-Canada Revenue Agency **rejects** T4 XML submissions containing optional fields with zero or empty values. Most payroll software exports every field regardless — this script strips the invalid ones so your upload passes validation.
+Canada Revenue Agency **rejects** T4 XML submissions containing optional fields with zero or empty values. Most payroll software exports every field regardless — this tool strips the invalid ones so your upload passes validation.
+
+## Download
+
+**Windows users:** Download [CRA-T4-Fixer.exe](https://github.com/1337group/cra-xml-t4-fixer/releases/latest/download/CRA-T4-Fixer.exe) from the [Releases](https://github.com/1337group/cra-xml-t4-fixer/releases) page. No install required — just run it.
+
+**Mac/Linux users:** Use the command-line version below (Python 3.10+ required).
 
 ## The Problem
 
@@ -31,6 +37,12 @@ Your payroll software generates XML like this:
 CRA's validation rule (since October 2025): **"remove all optional fields without values"**.
 
 ## The Fix
+
+### Windows (GUI)
+
+Download and run `CRA-T4-Fixer.exe` — browse for your XML files, click **Fix Files**, done.
+
+### Command Line
 
 ```bash
 python3 fix_t4_xml.py YourT4File.xml
@@ -94,8 +106,9 @@ python3 fix_t4_xml.py --no-backup T4_2025.xml
 
 ## Requirements
 
-- Python 3.10+
-- No external dependencies (stdlib only)
+**Windows exe:** None — fully portable, no install needed.
+
+**Command line:** Python 3.10+, no external dependencies (stdlib only).
 
 ## CRA Spec Reference
 
