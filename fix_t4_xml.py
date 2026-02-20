@@ -30,7 +30,7 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 
 # Path to bundled CRA XSD schemas (relative to this script)
 SCHEMA_DIR = Path(__file__).parent / "schemas"

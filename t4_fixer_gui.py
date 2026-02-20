@@ -18,7 +18,7 @@ else:
     _SCRIPT_DIR = Path(__file__).parent
 
 sys.path.insert(0, str(_SCRIPT_DIR))
-from fix_t4_xml import fix_t4_xml, validate_xml_wellformed, validate_xsd, __version__
+from fix_t4_xml import fix_t4_xml, validate_xml_wellformed, validate_xsd, find_xmllint, __version__
 
 SCHEMA_DIR = _SCRIPT_DIR / "schemas"
 T4_SCHEMA = SCHEMA_DIR / "T619_T4.xsd"
@@ -93,17 +93,20 @@ class T4FixerApp:
 
         self.validate_var = tk.BooleanVar(value=False)
         has_schema = T4_SCHEMA.exists()
+        has_xmllint = find_xmllint() is not None
+        can_validate = has_schema and has_xmllint
         cb = ttk.Checkbutton(
             opt_frame,
             text="Validate against CRA XSD schema",
             variable=self.validate_var,
-            state="normal" if has_schema else "disabled",
+            state="normal" if can_validate else "disabled",
         )
         cb.pack(side=tk.LEFT, padx=(16, 0))
-        if not has_schema:
+        if not can_validate:
+            reason = "(schema not found)" if not has_schema else "(xmllint not installed)"
             tk.Label(
                 opt_frame,
-                text="(schema not found)",
+                text=reason,
                 font=("Segoe UI", 8),
                 fg="#999999",
                 bg="#f5f5f5",
