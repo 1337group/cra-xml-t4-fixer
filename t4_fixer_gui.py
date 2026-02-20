@@ -127,8 +127,8 @@ class T4FixerApp:
         self.check_btn.pack(side=tk.LEFT, padx=(8, 0))
 
         # ── Log output ──────────────────────────────────────────
-        log_frame = tk.Frame(self.root, bg="#f5f5f5", padx=16, pady=(4, 16))
-        log_frame.pack(fill=tk.BOTH, expand=True)
+        log_frame = tk.Frame(self.root, bg="#f5f5f5")
+        log_frame.pack(fill=tk.BOTH, expand=True, padx=16, pady=(4, 16))
 
         self.log = scrolledtext.ScrolledText(
             log_frame,
