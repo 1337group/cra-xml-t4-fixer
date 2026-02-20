@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-fix_t4_xml.py — Fix CRA T4 XML files for Internet File Transfer
+fix_t4_xml.py — Fix and validate CRA T4 XML files for Internet File Transfer
 
 Canada Revenue Agency rejects T4 XML submissions that contain optional fields
 with zero or empty values. Most payroll software exports ALL fields regardless,
@@ -8,13 +8,15 @@ causing validation failures on upload.
 
 This script removes those invalid optional fields while preserving all required
 fields and real data, bringing the XML into compliance with the CRA T4 spec.
+It can also validate against the official CRA XSD schema before upload.
 
 Spec: https://www.canada.ca/en/revenue-agency/services/e-services/filing-information-returns-electronically-t4-t5-other-types-returns-overview/t619-2026/t4-2026.html
 
 Usage:
     python3 fix_t4_xml.py T4FILE.xml [T4FILE2.xml ...]
     python3 fix_t4_xml.py *.xml
-    python3 fix_t4_xml.py --check T4FILE.xml    # dry-run, no changes
+    python3 fix_t4_xml.py --check T4FILE.xml       # dry-run, no changes
+    python3 fix_t4_xml.py --validate T4FILE.xml     # validate against CRA XSD
 
 Author: https://github.com/1337group/cra-xml-t4-fixer
 License: MIT
@@ -23,11 +25,16 @@ License: MIT
 import argparse
 import re
 import shutil
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
+
+# Path to bundled CRA XSD schemas (relative to this script)
+SCHEMA_DIR = Path(__file__).parent / "schemas"
+T4_SCHEMA = SCHEMA_DIR / "T619_T4.xsd"
 
 # ──────────────────────────────────────────────────────────────────────
 # CRA T4 Spec: Optional fields that MUST be removed when zero/empty
@@ -181,7 +188,7 @@ def fix_t4_xml(content: str) -> tuple[str, dict[str, int], list[str]]:
     return content, changes, warnings
 
 
-def validate_xml(content: str, filename: str) -> bool:
+def validate_xml_wellformed(content: str, filename: str) -> bool:
     """Check that the XML is well-formed after modifications."""
     try:
         ET.fromstring(content)
@@ -191,7 +198,69 @@ def validate_xml(content: str, filename: str) -> bool:
         return False
 
 
-def process_file(filepath: Path, *, dry_run: bool = False, no_backup: bool = False) -> bool:
+def find_xmllint() -> str | None:
+    """Check if xmllint is available on the system."""
+    try:
+        result = subprocess.run(
+            ["xmllint", "--version"],
+            capture_output=True, text=True, timeout=5,
+        )
+        # xmllint prints version to stderr
+        return "xmllint"
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+
+
+def validate_xsd(filepath: Path, schema_path: Path | None = None) -> tuple[bool, str]:
+    """
+    Validate a T4 XML file against the official CRA XSD schema using xmllint.
+    Returns (is_valid, output_message).
+    """
+    if schema_path is None:
+        schema_path = T4_SCHEMA
+
+    if not schema_path.exists():
+        return False, (
+            f"Schema not found at {schema_path}\n"
+            "  Download from: https://www.canada.ca/en/revenue-agency/services/"
+            "e-services/filing-information-returns-electronically-t4-t5-other-types-"
+            "returns-overview/xml-specs.html\n"
+            "  Place in schemas/ directory next to this script."
+        )
+
+    xmllint = find_xmllint()
+    if xmllint is None:
+        return False, (
+            "xmllint not found. Install it to enable XSD validation:\n"
+            "  macOS:  brew install libxml2  (or use built-in /usr/bin/xmllint)\n"
+            "  Ubuntu: sudo apt install libxml2-utils\n"
+            "  RHEL:   sudo yum install libxml2"
+        )
+
+    try:
+        result = subprocess.run(
+            [xmllint, "--noout", "--schema", str(schema_path), str(filepath)],
+            capture_output=True, text=True, timeout=60,
+        )
+        # xmllint uses exit code 0 for valid, non-zero for errors
+        # Output goes to stderr
+        output = result.stderr.strip()
+        if result.returncode == 0:
+            return True, output
+        else:
+            return False, output
+    except subprocess.TimeoutExpired:
+        return False, "XSD validation timed out (60s limit)"
+
+
+def process_file(
+    filepath: Path,
+    *,
+    dry_run: bool = False,
+    no_backup: bool = False,
+    validate: bool = False,
+    schema_path: Path | None = None,
+) -> bool:
     """
     Process a single T4 XML file. Returns True if successful.
     """
@@ -211,17 +280,39 @@ def process_file(filepath: Path, *, dry_run: bool = False, no_backup: bool = Fal
         print(f"SKIP: {filepath.name} does not appear to be a T4 XML file", file=sys.stderr)
         return False
 
+    # Validate-only mode — just run XSD check on file as-is
+    if validate and dry_run:
+        print(f"\n{'─'*60}")
+        print(f"VALIDATE: {filepath.name}")
+        valid, msg = validate_xsd(filepath, schema_path)
+        if valid:
+            print(f"  ✓ {msg}")
+        else:
+            print(f"  ✗ FAILED")
+            for line in msg.split("\n"):
+                print(f"    {line}")
+        return valid
+
     # Apply fixes
     fixed, changes, warnings = fix_t4_xml(content)
 
     if not changes:
         print(f"\n{filepath.name}: No changes needed — already compliant")
+        if validate:
+            valid, msg = validate_xsd(filepath, schema_path)
+            if valid:
+                print(f"  ✓ XSD validation passed")
+            else:
+                print(f"  ✗ XSD validation FAILED")
+                for line in msg.split("\n"):
+                    print(f"    {line}")
+                return False
         return True
 
     new_lines = fixed.count("\n")
 
-    # Validate
-    if not validate_xml(fixed, filepath.name):
+    # Well-formedness check
+    if not validate_xml_wellformed(fixed, filepath.name):
         print(f"  Aborting changes to {filepath.name}", file=sys.stderr)
         return False
 
@@ -251,6 +342,18 @@ def process_file(filepath: Path, *, dry_run: bool = False, no_backup: bool = Fal
     # Write fixed file
     filepath.write_text(fixed, encoding="utf-8")
     print(f"  ✓ Saved")
+
+    # XSD validation after fix
+    if validate:
+        valid, msg = validate_xsd(filepath, schema_path)
+        if valid:
+            print(f"  ✓ XSD validation passed")
+        else:
+            print(f"  ✗ XSD validation FAILED after fix — review manually")
+            for line in msg.split("\n"):
+                print(f"    {line}")
+            return False
+
     return True
 
 
@@ -275,6 +378,19 @@ def main():
         help="Dry run — show what would change without modifying files",
     )
     parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Validate against official CRA XSD schema (requires xmllint). "
+             "Runs after fixing, or use with --check to validate without fixing.",
+    )
+    parser.add_argument(
+        "--schema",
+        type=Path,
+        default=None,
+        metavar="PATH",
+        help="Path to CRA T619_T4.xsd schema (default: schemas/T619_T4.xsd bundled with tool)",
+    )
+    parser.add_argument(
         "--no-backup",
         action="store_true",
         help="Skip creating .bak backup files",
@@ -291,7 +407,14 @@ def main():
     failed = 0
 
     for filepath in args.files:
-        if process_file(filepath, dry_run=args.check, no_backup=args.no_backup):
+        ok = process_file(
+            filepath,
+            dry_run=args.check,
+            no_backup=args.no_backup,
+            validate=args.validate,
+            schema_path=args.schema,
+        )
+        if ok:
             success += 1
         else:
             failed += 1

@@ -63,6 +63,15 @@ python3 fix_t4_xml.py company1.xml company2.xml company3.xml
 # Dry run — see what would change without modifying anything
 python3 fix_t4_xml.py --check T4_2025.xml
 
+# Validate against official CRA XSD schema (no changes)
+python3 fix_t4_xml.py --validate --check T4_2025.xml
+
+# Fix AND validate against CRA schema
+python3 fix_t4_xml.py --validate T4_2025.xml
+
+# Point to your own schema download
+python3 fix_t4_xml.py --validate --schema /path/to/T619_T4.xsd T4_2025.xml
+
 # Skip backup creation
 python3 fix_t4_xml.py --no-backup T4_2025.xml
 ```
