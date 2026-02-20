@@ -1,18 +1,24 @@
 # CRA T4 XML Fixer
 
-Fix CRA T4 XML files for Internet File Transfer submission.
+**Free tool for Canadian payroll staff** — fix T4 XML files so CRA Internet File Transfer actually accepts them.
 
-Canada Revenue Agency **rejects** T4 XML submissions containing optional fields with zero or empty values. Most payroll software exports every field regardless — this tool strips the invalid ones so your upload passes validation.
+Canada Revenue Agency rejects T4 XML submissions that contain optional fields with zero or empty values. Most payroll software (Jonas, Ceridian, ADP, Sage, QuickBooks, etc.) exports every field regardless — this tool strips the invalid ones so your upload passes validation on the first try.
 
-## Download
+> **No technical knowledge required.** Download, open your XML file, click Fix. That's it.
 
-**Windows users:** Download [CRA-T4-Fixer.exe](https://github.com/1337group/cra-xml-t4-fixer/releases/latest/download/CRA-T4-Fixer.exe) from the [Releases](https://github.com/1337group/cra-xml-t4-fixer/releases) page. No install required — just run it.
+---
 
-**Mac/Linux users:** Use the command-line version below (Python 3.10+ required).
+## [![Download CRA T4 XML Fixer](https://img.shields.io/badge/DOWNLOAD-CRA--T4--Fixer.exe-blue?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/1337group/cra-xml-t4-fixer/releases/latest/download/CRA-T4-Fixer.exe)
+
+**Windows:** Click the button above to download. No installation needed — just double-click and run.
+
+**Mac/Linux:** Use the command-line version below (Python 3.10+ required).
+
+---
 
 ## The Problem
 
-Your payroll software generates XML like this:
+Your payroll software generates T4 XML like this for CRA Internet File Transfer:
 
 ```xml
 <T4_AMT>
@@ -34,21 +40,27 @@ Your payroll software generates XML like this:
 </T4_AMT>
 ```
 
-CRA's validation rule (since October 2025): **"remove all optional fields without values"**.
+CRA's validation rule (since October 2025): **"remove all optional fields without values"**. Your payroll software doesn't do this — so CRA rejects your file.
 
 ## The Fix
 
-### Windows (GUI)
+### Windows (GUI) — For Payroll Staff
 
-Download and run `CRA-T4-Fixer.exe` — browse for your XML files, click **Fix Files**, done.
+1. Download `CRA-T4-Fixer.exe` (button above)
+2. Double-click to open
+3. Click **Browse XML Files** and select your T4 XML file(s)
+4. Click **Fix Files**
+5. Upload the fixed file to CRA Internet File Transfer
 
-### Command Line
+A backup of your original file is created automatically (`.bak`).
+
+### Command Line — For IT Staff
 
 ```bash
 python3 fix_t4_xml.py YourT4File.xml
 ```
 
-After:
+After fixing:
 
 ```xml
 <T4_AMT>
@@ -63,7 +75,7 @@ After:
 
 All required fields preserved. All zero optional fields removed. CRA accepts the upload.
 
-## Usage
+## Command Line Usage
 
 ```bash
 # Fix one file (creates .bak backup automatically)
@@ -103,6 +115,36 @@ python3 fix_t4_xml.py --no-backup T4_2025.xml
 | Summary totals = `0.00` | Removes zero-value summary total fields |
 
 **Required fields are never removed:** `sin`, `bn`, `cpp_qpp_xmpt_cd`, `ei_xmpt_cd`, `rpt_tcd`, `empt_prov_cd`, `empr_dntl_ben_rpt_cd`, `ei_insu_ern_amt`, `cpp_qpp_ern_amt`, `tx_yr`, `slp_cnt`, etc.
+
+## Common Payroll Software Affected
+
+This issue affects XML exports from most Canadian payroll systems including:
+
+- **Jonas Software** (Jonas Construction, Jonas Premier)
+- **Sage 50 / Sage 300** (Simply Accounting)
+- **Ceridian Dayforce / Powerpay**
+- **ADP WFN / ADP Run**
+- **QuickBooks Desktop / Online**
+- **PaymentEvolution**
+- **Payworks**
+- **Wagepoint**
+- **Rise People**
+
+If your payroll software generates T4 XML with zero-value optional fields, this tool will fix it.
+
+## Frequently Asked Questions
+
+**Is this safe to use?**
+Yes. The tool only removes invalid zero-value optional fields. It never modifies your actual employee data (names, SINs, income amounts, tax deductions). A backup of the original file is always created.
+
+**Why does CRA reject my T4 XML?**
+Since October 2025, CRA's Internet File Transfer validation requires that optional XML fields with no value be completely removed from the file. Most payroll software still includes these empty fields, causing upload failures.
+
+**Do I need to install anything?**
+No. The Windows `.exe` is fully portable — just download and run. No Python, no install, no admin rights needed.
+
+**Can I preview changes before fixing?**
+Yes. Use the **Dry Run (Preview)** button in the GUI, or `--check` on the command line, to see exactly what would change without modifying your file.
 
 ## Requirements
 
