@@ -159,4 +159,4 @@ Yes. Use the **Dry Run (Preview)** button in the GUI, or `--check` on the comman
 
 ## License
 
-MIT
+Free for personal and business use. Redistribution or resale requires written permission from 1337group. See [LICENSE](LICENSE) for full terms.

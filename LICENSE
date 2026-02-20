@@ -1,21 +1,31 @@
-MIT License
+Copyright (c) 2026 1337group. All rights reserved.
 
-Copyright (c) 2026 1337group
+TERMS OF USE
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is granted, free of charge, to any person or organization to
+use this software and associated documentation files (the "Software") for
+personal or business purposes, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. PERMITTED USE: You may download, use, and modify the Software for your
+   own personal or internal business use at no cost.
+
+2. NO REDISTRIBUTION: You may not redistribute, publish, sublicense, or
+   otherwise make the Software (or any modified version of it) available
+   to third parties without prior written permission from 1337group.
+
+3. NO RESALE: You may not sell, rent, lease, or commercially exploit the
+   Software without prior written permission from 1337group.
+
+4. ATTRIBUTION: If you reference or recommend this Software publicly, a
+   link to the original repository is appreciated but not required.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+For redistribution or commercial licensing inquiries, contact 1337group
+via GitHub: https://github.com/1337group
