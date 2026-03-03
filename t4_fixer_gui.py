@@ -19,6 +19,7 @@ else:
 
 sys.path.insert(0, str(_SCRIPT_DIR))
 from fix_t4_xml import fix_t4_xml, validate_xml_wellformed, validate_xsd, find_xmllint, __version__
+from t4_report import generate_report_from_file
 
 SCHEMA_DIR = _SCRIPT_DIR / "schemas"
 T4_SCHEMA = SCHEMA_DIR / "T619_T4.xsd"
@@ -49,7 +50,7 @@ class T4FixerApp:
         ).pack()
         tk.Label(
             header,
-            text="Fix optional zero-value fields that cause CRA rejection",
+            text="Fix CRA validation issues  |  Generate T4 reports from XML",
             font=("Segoe UI", 9),
             fg="#aaaaaa",
             bg="#1a1a2e",
@@ -129,6 +130,27 @@ class T4FixerApp:
         )
         self.check_btn.pack(side=tk.LEFT, padx=(8, 0))
 
+        # Separator
+        ttk.Separator(action_frame, orient=tk.VERTICAL).pack(
+            side=tk.LEFT, padx=(16, 16), fill=tk.Y, pady=2
+        )
+
+        self.report_btn = ttk.Button(
+            action_frame,
+            text="Generate T4 Report",
+            command=self._run_report,
+            state="disabled",
+        )
+        self.report_btn.pack(side=tk.LEFT)
+
+        self.csv_btn = ttk.Button(
+            action_frame,
+            text="Export CSV",
+            command=self._run_csv,
+            state="disabled",
+        )
+        self.csv_btn.pack(side=tk.LEFT, padx=(8, 0))
+
         # ── Log output ──────────────────────────────────────────
         log_frame = tk.Frame(self.root, bg="#f5f5f5")
         log_frame.pack(fill=tk.BOTH, expand=True, padx=16, pady=(4, 16))
@@ -167,12 +189,16 @@ class T4FixerApp:
             )
             self.fix_btn.config(state="normal")
             self.check_btn.config(state="normal")
+            self.report_btn.config(state="normal")
+            self.csv_btn.config(state="normal")
 
     def _clear_files(self):
         self.files = []
         self.file_label.config(text="No files selected", fg="#666666")
         self.fix_btn.config(state="disabled")
         self.check_btn.config(state="disabled")
+        self.report_btn.config(state="disabled")
+        self.csv_btn.config(state="disabled")
 
     # ── Logging ─────────────────────────────────────────────────
 
@@ -196,6 +222,8 @@ class T4FixerApp:
         state = "normal" if enabled else "disabled"
         self.fix_btn.config(state=state)
         self.check_btn.config(state=state)
+        self.report_btn.config(state=state)
+        self.csv_btn.config(state=state)
         self.browse_btn.config(state=state)
 
     def _run_fix(self):
@@ -203,6 +231,63 @@ class T4FixerApp:
 
     def _run_check(self):
         self._process(dry_run=True)
+
+    def _run_report(self):
+        self._generate_report(fmt="text")
+
+    def _run_csv(self):
+        self._generate_report(fmt="csv")
+
+    def _generate_report(self, fmt: str):
+        if not self.files:
+            return
+
+        self._set_buttons(False)
+        self._log_clear()
+
+        mode = "TEXT REPORT" if fmt == "text" else "CSV EXPORT"
+        self._log(f"{'─' * 50}", "dim")
+        self._log(f"  {mode} — {len(self.files)} file(s)", "info")
+        self._log(f"{'─' * 50}", "dim")
+
+        thread = threading.Thread(
+            target=self._generate_report_files, args=(fmt,), daemon=True
+        )
+        thread.start()
+
+    def _generate_report_files(self, fmt: str):
+        success = 0
+        failed = 0
+
+        for filepath in self.files:
+            self.root.after(0, self._log, f"\n{'─' * 50}", "dim")
+            self.root.after(0, self._log, f"  {filepath.name}", "info")
+
+            try:
+                report, output_name, count = generate_report_from_file(filepath, fmt)
+                output_path = filepath.parent / output_name
+                output_path.write_text(report, encoding="utf-8")
+                self.root.after(
+                    0, self._log,
+                    f"  {count} T4 slip(s) extracted", "success"
+                )
+                self.root.after(
+                    0, self._log,
+                    f"  Saved: {output_path}", "success"
+                )
+                success += 1
+            except Exception as e:
+                self.root.after(0, self._log, f"  ERROR: {e}", "error")
+                failed += 1
+
+        self.root.after(0, self._log, f"\n{'─' * 50}", "dim")
+        summary_text = f"  Done: {success} report(s) generated"
+        if failed:
+            summary_text += f", {failed} failed"
+        tag = "success" if not failed else "warning"
+        self.root.after(0, self._log, summary_text, tag)
+        self.root.after(0, self._log, f"{'─' * 50}", "dim")
+        self.root.after(0, self._set_buttons, True)
 
     def _process(self, dry_run: bool):
         if not self.files:

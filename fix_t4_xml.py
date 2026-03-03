@@ -30,7 +30,7 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-__version__ = "1.4.1"
+__version__ = "1.5.0"
 
 # Path to bundled CRA XSD schemas (relative to this script)
 SCHEMA_DIR = Path(__file__).parent / "schemas"
@@ -434,6 +434,18 @@ def main():
         help="Skip creating .bak backup files",
     )
     parser.add_argument(
+        "--report",
+        action="store_true",
+        help="Generate a human-readable T4 report from the XML file(s). "
+             "Outputs a .txt file with all T4 slips formatted with box labels.",
+    )
+    parser.add_argument(
+        "--csv",
+        action="store_true",
+        help="Generate a CSV spreadsheet from the XML file(s). "
+             "One row per employee with all T4 box values as columns.",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
@@ -441,6 +453,37 @@ def main():
 
     args = parser.parse_args()
 
+    # ── Report/CSV generation mode ────────────────────────────
+    if args.report or args.csv:
+        from t4_report import generate_report_from_file
+
+        fmt = "csv" if args.csv else "text"
+        success = 0
+        failed = 0
+
+        for filepath in args.files:
+            try:
+                report, output_name, count = generate_report_from_file(filepath, fmt)
+                output_path = filepath.parent / output_name
+                output_path.write_text(report, encoding="utf-8")
+                print(f"{'─'*60}")
+                print(f"  {filepath.name} → {output_name}")
+                print(f"  {count} T4 slip(s) extracted")
+                print(f"  ✓ Saved to {output_path}")
+                success += 1
+            except Exception as e:
+                print(f"{'─'*60}")
+                print(f"  {filepath.name}: ERROR — {e}", file=sys.stderr)
+                failed += 1
+
+        print(f"\n{'─'*60}")
+        print(f"Done: {success} report(s) generated", end="")
+        if failed:
+            print(f", {failed} failed", end="")
+        print()
+        sys.exit(1 if failed else 0)
+
+    # ── Normal fix mode ───────────────────────────────────────
     success = 0
     failed = 0
 
