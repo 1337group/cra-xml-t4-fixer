@@ -30,6 +30,7 @@ jobs:
           --name "CRA-T4-Fixer"
           --add-data "schemas;schemas"
           --add-data "fix_t4_xml.py;."
+          --add-data "t4_report.py;."
           t4_fixer_gui.py
 
       - name: Upload artifact
